@@ -1,0 +1,5 @@
+# requirements.txt
+streamlit
+streamlit-star-rating
+st-supabase-connection
+pandas
