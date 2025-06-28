@@ -1,7 +1,6 @@
 # app.py
 import streamlit as st
 from st_supabase_connection import SupabaseConnection
-from streamlit_star_rating import st_star_rating
 import hashlib
 import pandas as pd
 
@@ -98,7 +97,8 @@ with tab_view:
                 st.markdown(f"*Submitted by: {row['username']}*")
                 st.code(row['prompt_text'], language="text")
 
-                col1, col2 = st.columns([1, 3])
+                # --- Voting Section (NEW NATIVE IMPLEMENTATION) ---
+                col1, col2 = st.columns([1, 2])
                 with col1:
                     rating_data = conn.query("rating", table="votes", count="exact").eq("prompt_id", row['id']).execute()
                     avg_rating = sum(r['rating'] for r in rating_data.data) / rating_data.count if rating_data.count > 0 else 0
@@ -106,17 +106,28 @@ with tab_view:
 
                 with col2:
                     if st.session_state.logged_in:
+                        # Get user's current vote
                         user_vote_data = conn.query("rating", table="votes").eq("prompt_id", row['id']).eq("user_id", st.session_state.user_id).execute().data
                         user_vote = user_vote_data[0]['rating'] if user_vote_data else 0
                         
-                        stars = st_star_rating(label="", maxValue=5, defaultValue=user_vote, key=f"star_{row['id']}")
-                        if stars != user_vote:
-                            conn.table("votes").upsert({
-                                "prompt_id": row['id'],
-                                "user_id": st.session_state.user_id,
-                                "rating": stars
-                            }, on_conflict="prompt_id, user_id").execute()
-                            st.rerun()
+                        # Display stars as buttons
+                        star_cols = st.columns(5)
+                        for i, star_col in enumerate(star_cols, 1):
+                            with star_col:
+                                if st.button("⭐" if i <= user_vote else "☆", key=f"star_{row['id']}_{i}", use_container_width=True):
+                                    # New rating is the star number that was clicked
+                                    new_rating = i
+                                    # If they click the same star they already voted for, it un-votes (sets rating to 0)
+                                    if new_rating == user_vote:
+                                        new_rating = 0
+                                    
+                                    # Update or insert the vote in the database
+                                    conn.table("votes").upsert({
+                                        "prompt_id": row['id'],
+                                        "user_id": st.session_state.user_id,
+                                        "rating": new_rating
+                                    }, on_conflict="prompt_id, user_id").execute()
+                                    st.rerun()
                     else:
                         st.warning("Login to vote!")
 
