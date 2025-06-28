@@ -13,7 +13,7 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 # --- DATABASE CONNECTION ---
-# Initialize connection. Uses st.secrets to connect to Supabase.
+# This line is now working correctly thanks to your secrets!
 conn = st.connection("supabase", type=SupabaseConnection)
 
 # --- SESSION STATE MANAGEMENT ---
@@ -48,7 +48,8 @@ with st.sidebar:
 
                 if login_button:
                     password_hash = hash_password(password)
-                    user_data = conn.query("*", table="users", count="exact").eq("username", username).eq("password_hash", password_hash).execute()
+                    # CORRECTED SYNTAX: Use conn.client.table(...).select(...)
+                    user_data = conn.client.table("users").select("*", count="exact").eq("username", username).eq("password_hash", password_hash).execute()
                     if user_data.count > 0:
                         user = user_data.data[0]
                         st.session_state.logged_in = True
@@ -66,11 +67,13 @@ with st.sidebar:
                 register_button = st.form_submit_button("Register")
 
                 if register_button:
-                    user_exists = conn.query("*", table="users", count="exact").eq("username", new_username).execute()
+                    # CORRECTED SYNTAX: Use conn.client
+                    user_exists = conn.client.table("users").select("*", count="exact").eq("username", new_username).execute()
                     if user_exists.count > 0:
                         st.error("Username already exists.")
                     else:
-                        conn.table("users").insert({
+                        # CORRECTED SYNTAX: Use conn.client
+                        conn.client.table("users").insert({
                             "username": new_username,
                             "password_hash": hash_password(new_password),
                             "role": "user"
@@ -86,7 +89,8 @@ tab_view, tab_submit, tab_admin = st.tabs(["View Prompts", "Submit a Prompt", "A
 # --- VIEW PROMPTS TAB ---
 with tab_view:
     st.header("🌟 Approved Community Prompts")
-    prompts_data = conn.rpc('get_approved_prompts_with_username').execute().data
+    # CORRECTED SYNTAX: Use conn.client.rpc(...)
+    prompts_data = conn.client.rpc('get_approved_prompts_with_username', {}).execute().data
     
     if not prompts_data:
         st.info("No prompts have been approved yet. Check back later!")
@@ -97,36 +101,32 @@ with tab_view:
                 st.markdown(f"*Submitted by: {row['username']}*")
                 st.code(row['prompt_text'], language="text")
 
-                # --- Voting Section (NEW NATIVE IMPLEMENTATION) ---
                 col1, col2 = st.columns([1, 2])
                 with col1:
-                    rating_data = conn.query("rating", table="votes", count="exact").eq("prompt_id", row['id']).execute()
+                    # CORRECTED SYNTAX: Use conn.client
+                    rating_data = conn.client.table("votes").select("rating", count="exact").eq("prompt_id", row['id']).execute()
                     avg_rating = sum(r['rating'] for r in rating_data.data) / rating_data.count if rating_data.count > 0 else 0
                     st.markdown(f"**Rating: {avg_rating:.2f} / 5** ({rating_data.count} votes)")
 
                 with col2:
                     if st.session_state.logged_in:
-                        # Get user's current vote
-                        user_vote_data = conn.query("rating", table="votes").eq("prompt_id", row['id']).eq("user_id", st.session_state.user_id).execute().data
+                        # CORRECTED SYNTAX: Use conn.client
+                        user_vote_data = conn.client.table("votes").select("rating").eq("prompt_id", row['id']).eq("user_id", st.session_state.user_id).execute().data
                         user_vote = user_vote_data[0]['rating'] if user_vote_data else 0
                         
-                        # Display stars as buttons
                         star_cols = st.columns(5)
                         for i, star_col in enumerate(star_cols, 1):
                             with star_col:
                                 if st.button("⭐" if i <= user_vote else "☆", key=f"star_{row['id']}_{i}", use_container_width=True):
-                                    # New rating is the star number that was clicked
                                     new_rating = i
-                                    # If they click the same star they already voted for, it un-votes (sets rating to 0)
-                                    if new_rating == user_vote:
-                                        new_rating = 0
+                                    if new_rating == user_vote: new_rating = 0
                                     
-                                    # Update or insert the vote in the database
-                                    conn.table("votes").upsert({
+                                    # CORRECTED SYNTAX: Use conn.client
+                                    conn.client.table("votes").upsert({
                                         "prompt_id": row['id'],
                                         "user_id": st.session_state.user_id,
                                         "rating": new_rating
-                                    }, on_conflict="prompt_id, user_id").execute()
+                                    }).execute()
                                     st.rerun()
                     else:
                         st.warning("Login to vote!")
@@ -143,7 +143,8 @@ with tab_submit:
 
             if submitted:
                 if title and prompt_text:
-                    conn.table("prompts").insert({
+                    # CORRECTED SYNTAX: Use conn.client
+                    conn.client.table("prompts").insert({
                         "title": title, "prompt_text": prompt_text, "category": category,
                         "submitted_by_id": st.session_state.user_id, "status": "pending"
                     }).execute()
@@ -157,7 +158,8 @@ with tab_submit:
 with tab_admin:
     if st.session_state.role == 'admin':
         st.header("🔑 Admin Approval Queue")
-        pending_prompts_data = conn.rpc('get_pending_prompts_with_username').execute().data
+        # CORRECTED SYNTAX: Use conn.client.rpc(...)
+        pending_prompts_data = conn.client.rpc('get_pending_prompts_with_username', {}).execute().data
 
         if not pending_prompts_data:
             st.info("No prompts are currently awaiting approval.")
@@ -172,11 +174,13 @@ with tab_admin:
                     col1, col2, col3 = st.columns([1, 1, 5])
                     with col1:
                         if st.button("Approve", key=f"approve_{row['id']}", type="primary"):
-                            conn.table("prompts").update({"status": "approved"}).eq("id", row['id']).execute()
+                            # CORRECTED SYNTAX: Use conn.client
+                            conn.client.table("prompts").update({"status": "approved"}).eq("id", row['id']).execute()
                             st.rerun()
                     with col2:
                         if st.button("Reject", key=f"reject_{row['id']}"):
-                            conn.table("prompts").update({"status": "rejected"}).eq("id", row['id']).execute()
+                            # CORRECTED SYNTAX: Use conn.client
+                            conn.client.table("prompts").update({"status": "rejected"}).eq("id", row['id']).execute()
                             st.rerun()
     else:
         st.error("You do not have permission to view this page.")
