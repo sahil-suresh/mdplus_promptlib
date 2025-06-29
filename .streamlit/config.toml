@@ -1,0 +1,18 @@
+# .streamlit/config.toml
+# This is a pure configuration file solution for a blue theme.
+
+[theme]
+# PrimaryColor is used for all interactive widgets. We are using a professional blue.
+primaryColor="#007bff"
+
+# A very light gray for the main background for a soft, modern feel.
+backgroundColor="#f0f2f5"
+
+# A clean white for the sidebar and other containers like expanders and forms.
+secondaryBackgroundColor="#ffffff"
+
+# Dark charcoal gray for text for better readability than pure black.
+textColor="#31333F"
+
+# Use a standard, clean font.
+font="sans serif"
