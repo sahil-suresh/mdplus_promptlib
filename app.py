@@ -7,6 +7,49 @@ import pandas as pd
 
 st.set_page_config(page_title="AI Prompt Hub", layout="wide")
 
+st.markdown("""
+<style>
+/* Page Background and Text */
+.stApp {
+    background-color: #f0f2f5; /* Light gray background */
+}
+body, p, li {
+    color: #31333F; /* Dark charcoal text for readability */
+}
+
+/* Main Title (Yellow Accent) */
+h1 {
+    color: #ffc107; /* Vibrant yellow/gold */
+}
+
+/* Subheaders (Blue) */
+h2, h3 {
+    color: #007bff; /* Primary blue */
+}
+
+/* Sidebar */
+.st-emotion-cache-16txtl3 {
+    background-color: #ffffff; /* Clean white sidebar */
+}
+
+/* Primary Color for Buttons (Blue) */
+button[data-testid="stButton"] {
+    background-color: #007bff;
+    color: white;
+    border: 1px solid #007bff;
+}
+button[data-testid="stButton"]:hover {
+    background-color: #0056b3;
+    border: 1px solid #0056b3;
+    color: white;
+}
+button[data-testid="stButton"]:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.5);
+    color: white;
+}
+</style>
+""", unsafe_allow_html=True)
+
 def hash_password(password):
     """Hashes a password for storing."""
     return hashlib.sha256(password.encode()).hexdigest()
@@ -152,7 +195,7 @@ with tab_view:
                             st.warning("Login to vote!")
 
 with tab_submit:
-    st.header("✍️ Share Your Own Prompt")
+    st.header("Share Your Own Prompt")
     if st.session_state.logged_in:
         tag_options = {
             "Medical Student": ["ExamPrep", "CaseSimulator", "ConceptInstruction", "MnemonicGenerator", "NoteTaker"],
