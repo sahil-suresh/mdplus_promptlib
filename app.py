@@ -7,26 +7,6 @@ import pandas as pd
 
 st.set_page_config(page_title="AI Prompt Hub", layout="wide")
 
-# --- THIS IS THE CORRECT PLACE FOR THE CSS SNIPPET ---
-st.markdown("""
-<style>
-/* This CSS is for the special yellow accent which config.toml can't do */
-
-/* Target the main title h1 */
-h1 {
-    color: #ffc107; /* A vibrant, modern yellow/gold */
-}
-
-/* Optional: Make subheaders match the primary blue for consistency */
-h2 {
-    color: #007bff;
-}
-
-</style>
-""", unsafe_allow_html=True)
-# --- END OF SNIPPET ---
-
-
 def hash_password(password):
     """Hashes a password for storing."""
     return hashlib.sha256(password.encode()).hexdigest()
