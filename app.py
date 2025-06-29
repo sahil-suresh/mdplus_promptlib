@@ -7,48 +7,25 @@ import pandas as pd
 
 st.set_page_config(page_title="AI Prompt Hub", layout="wide")
 
+# --- THIS IS THE CORRECT PLACE FOR THE CSS SNIPPET ---
 st.markdown("""
 <style>
-/* Page Background and Text */
-.stApp {
-    background-color: #f0f2f5; /* Light gray background */
-}
-body, p, li {
-    color: #31333F; /* Dark charcoal text for readability */
-}
+/* This CSS is for the special yellow accent which config.toml can't do */
 
-/* Main Title (Yellow Accent) */
+/* Target the main title h1 */
 h1 {
-    color: #ffc107; /* Vibrant yellow/gold */
+    color: #ffc107; /* A vibrant, modern yellow/gold */
 }
 
-/* Subheaders (Blue) */
-h2, h3 {
-    color: #007bff; /* Primary blue */
+/* Optional: Make subheaders match the primary blue for consistency */
+h2 {
+    color: #007bff;
 }
 
-/* Sidebar */
-.st-emotion-cache-16txtl3 {
-    background-color: #ffffff; /* Clean white sidebar */
-}
-
-/* Primary Color for Buttons (Blue) */
-button[data-testid="stButton"] {
-    background-color: #007bff;
-    color: white;
-    border: 1px solid #007bff;
-}
-button[data-testid="stButton"]:hover {
-    background-color: #0056b3;
-    border: 1px solid #0056b3;
-    color: white;
-}
-button[data-testid="stButton"]:focus {
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.5);
-    color: white;
-}
 </style>
 """, unsafe_allow_html=True)
+# --- END OF SNIPPET ---
+
 
 def hash_password(password):
     """Hashes a password for storing."""
