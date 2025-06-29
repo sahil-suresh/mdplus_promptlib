@@ -99,6 +99,9 @@ with tab_view:
         for index, row in prompts_df.iterrows():
             with st.expander(f"**{row['title']}** (Category: {row['category']})", expanded=False):
                 st.markdown(f"*Submitted by: {row['username']}*")
+                # Add this line to display tags
+                if row['tags']:
+                    st.markdown(f"**Tags:** `{row['tags']}`")
                 st.code(row['prompt_text'], language="text")
 
                 col1, col2 = st.columns([1, 2])
@@ -135,24 +138,45 @@ with tab_view:
 with tab_submit:
     st.header("✍️ Share Your Own Prompt")
     if st.session_state.logged_in:
+        # Define the tags for each category
+        tag_options = {
+            "Medical Student": ["ExamPrep", "CaseSimulator", "ConceptInstruction", "MnemonicGenerator", "NoteTaker"],
+            "Residents": ["GuidelineCheck", "FellowshipCoach", "ICD10Helper", "Scribing", "CaseSimulator"]
+        }
+        
         with st.form("prompt_submission_form", clear_on_submit=True):
             title = st.text_input("Prompt Title")
-            category = st.selectbox("Category", ["General", "Coding", "Creative Writing", "Marketing", "Education"])
+            
+            # Use new categories
+            category = st.selectbox("Category", ["Medical Student", "Residents"])
+            
+            # Dynamically show tags based on selected category
+            tags = []
+            if category:
+                tags = st.multiselect("Select Tags", options=tag_options[category])
+            
             prompt_text = st.text_area("Prompt Text", height=200)
             submitted = st.form_submit_button("Submit for Approval")
 
             if submitted:
-                if title and prompt_text:
-                    # CORRECTED SYNTAX: Use conn.client
+                if title and prompt_text and category and tags:
+                    # Convert the list of tags to a comma-separated string for storage
+                    tags_string = ", ".join(tags)
+                    
                     conn.client.table("prompts").insert({
-                        "title": title, "prompt_text": prompt_text, "category": category,
-                        "submitted_by_id": st.session_state.user_id, "status": "pending"
+                        "title": title,
+                        "prompt_text": prompt_text,
+                        "category": category,
+                        "tags": tags_string,  # Add the new tags data
+                        "submitted_by_id": st.session_state.user_id,
+                        "status": "pending"
                     }).execute()
                     st.success("Your prompt has been submitted for admin approval. Thank you!")
                 else:
-                    st.warning("Please fill out all fields.")
+                    st.warning("Please fill out all fields, including at least one tag.")
     else:
         st.warning("You must be logged in to submit a prompt.")
+        
 
 # --- ADMIN PANEL TAB ---
 with tab_admin:
@@ -169,6 +193,8 @@ with tab_admin:
                 with st.container(border=True):
                     st.subheader(f"'{row['title']}' by {row['username']}")
                     st.markdown(f"**Category:** {row['category']}")
+                    if row['tags']:
+                        st.markdown(f"**Tags:** `{row['tags']}`")
                     st.code(row['prompt_text'], language='text')
 
                     col1, col2, col3 = st.columns([1, 1, 5])
