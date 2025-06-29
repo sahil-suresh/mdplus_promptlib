@@ -155,14 +155,15 @@ with tab_submit:
     st.header("Share Your Own Prompt")
     if st.session_state.logged_in:
         tag_options = {
-            "Medical Student": ["ExamPrep", "CaseSimulator", "ConceptInstruction", "MnemonicGenerator", "NoteTaker"],
-            "Residents": ["GuidelineCheck", "FellowshipCoach", "ICD10Helper", "Scribing", "CaseSimulator"]
+            "Medical Students": ["ExamPrep", "CaseSimulator", "ConceptInstruction", "MnemonicGenerator", "NoteTaker", "AnatomyHelper"],
+            "Residents": ["ExamPrep", "GuidelineCheck", "FellowshipCoach", "ICD10Helper", "Scribing", "CaseSimulator", "ClinicalTranslation"],
+            "Miscellaneous": []
         }
         
         with st.form("prompt_submission_form", clear_on_submit=True):
             title = st.text_input("Prompt Title")
         
-            category = st.selectbox("Category", ["Medical Student", "Residents"])
+            category = st.selectbox("Category", ["Medical Students", "Residents", "Miscellaneous"])
             
             tags = []
             if category:
