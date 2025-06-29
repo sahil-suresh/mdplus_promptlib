@@ -4,28 +4,23 @@ from st_supabase_connection import SupabaseConnection
 import hashlib
 import pandas as pd
 
-# --- APP CONFIGURATION ---
+
 st.set_page_config(page_title="AI Prompt Hub", layout="wide")
 
-# --- HELPER FUNCTIONS ---
 def hash_password(password):
     """Hashes a password for storing."""
     return hashlib.sha256(password.encode()).hexdigest()
 
-# --- DATABASE CONNECTION ---
-# This line is now working correctly thanks to your secrets!
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# --- SESSION STATE MANAGEMENT ---
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.user_id = 0
     st.session_state.role = ""
 
-# --- LOGIN/LOGOUT/REGISTER SIDEBAR ---
 with st.sidebar:
-    st.title("👨‍💻 User Hub")
+    st.title("User Hub")
 
     if st.session_state.logged_in:
         st.success(f"Logged in as **{st.session_state.username}**")
@@ -48,7 +43,6 @@ with st.sidebar:
 
                 if login_button:
                     password_hash = hash_password(password)
-                    # CORRECTED SYNTAX: Use conn.client.table(...).select(...)
                     user_data = conn.client.table("users").select("*", count="exact").eq("username", username).eq("password_hash", password_hash).execute()
                     if user_data.count > 0:
                         user = user_data.data[0]
@@ -67,12 +61,10 @@ with st.sidebar:
                 register_button = st.form_submit_button("Register")
 
                 if register_button:
-                    # CORRECTED SYNTAX: Use conn.client
                     user_exists = conn.client.table("users").select("*", count="exact").eq("username", new_username).execute()
                     if user_exists.count > 0:
                         st.error("Username already exists.")
                     else:
-                        # CORRECTED SYNTAX: Use conn.client
                         conn.client.table("users").insert({
                             "username": new_username,
                             "password_hash": hash_password(new_password),
@@ -80,65 +72,88 @@ with st.sidebar:
                         }).execute()
                         st.success("Registration successful! Please log in.")
 
-# --- MAIN APP ---
-st.title("🚀 AI Prompt Database")
+
+st.title("MDPlus AI Prompt Library")
 st.markdown("Discover, share, and vote on the best AI prompts.")
 
 tab_view, tab_submit, tab_admin = st.tabs(["View Prompts", "Submit a Prompt", "Admin Panel"])
 
-# --- VIEW PROMPTS TAB ---
+
 with tab_view:
-    st.header("🌟 Approved Community Prompts")
-    # CORRECTED SYNTAX: Use conn.client.rpc(...)
+    st.header("Approved Community Prompts")
     prompts_data = conn.client.rpc('get_approved_prompts_with_username', {}).execute().data
     
     if not prompts_data:
         st.info("No prompts have been approved yet. Check back later!")
     else:
         prompts_df = pd.DataFrame(prompts_data)
-        for index, row in prompts_df.iterrows():
-            with st.expander(f"**{row['title']}** (Category: {row['category']})", expanded=False):
-                st.markdown(f"*Submitted by: {row['username']}*")
-                # Add this line to display tags
-                if row['tags']:
-                    st.markdown(f"**Tags:** `{row['tags']}`")
-                st.code(row['prompt_text'], language="text")
+        
+        st.subheader("Search and Filter")
+        
+        search_query = st.text_input("Search by keyword in title or prompt text", placeholder="e.g., cardiology, exam, note")
+        
+        all_tags = set()
+        for t in prompts_df['tags'].dropna():
+            all_tags.update([tag.strip() for tag in t.split(',')])
+        sorted_tags = sorted(list(all_tags))
+        
+        selected_tags = st.multiselect("Filter by tags", options=sorted_tags)
 
-                col1, col2 = st.columns([1, 2])
-                with col1:
-                    # CORRECTED SYNTAX: Use conn.client
-                    rating_data = conn.client.table("votes").select("rating", count="exact").eq("prompt_id", row['id']).execute()
-                    avg_rating = sum(r['rating'] for r in rating_data.data) / rating_data.count if rating_data.count > 0 else 0
-                    st.markdown(f"**Rating: {avg_rating:.2f} / 5** ({rating_data.count} votes)")
+        filtered_df = prompts_df.copy() 
 
-                with col2:
-                    if st.session_state.logged_in:
-                        # CORRECTED SYNTAX: Use conn.client
-                        user_vote_data = conn.client.table("votes").select("rating").eq("prompt_id", row['id']).eq("user_id", st.session_state.user_id).execute().data
-                        user_vote = user_vote_data[0]['rating'] if user_vote_data else 0
-                        
-                        star_cols = st.columns(5)
-                        for i, star_col in enumerate(star_cols, 1):
-                            with star_col:
-                                if st.button("⭐" if i <= user_vote else "☆", key=f"star_{row['id']}_{i}", use_container_width=True):
-                                    new_rating = i
-                                    if new_rating == user_vote: new_rating = 0
-                                    
-                                    # CORRECTED SYNTAX: Use conn.client
-                                    conn.client.table("votes").upsert({
-                                        "prompt_id": row['id'],
-                                        "user_id": st.session_state.user_id,
-                                        "rating": new_rating
-                                    }).execute()
-                                    st.rerun()
-                    else:
-                        st.warning("Login to vote!")
+        if search_query:
+            filtered_df = filtered_df[
+                filtered_df['title'].str.contains(search_query, case=False, na=False) |
+                filtered_df['prompt_text'].str.contains(search_query, case=False, na=False)
+            ]
 
-# --- SUBMIT PROMPT TAB ---
+        if selected_tags:
+            for tag in selected_tags:
+                filtered_df = filtered_df[filtered_df['tags'].str.contains(tag, case=False, na=False)]
+
+        st.markdown(f"---")
+        st.write(f"**{len(filtered_df)} prompts found**")
+
+        if filtered_df.empty:
+            st.warning("No prompts match your current search criteria.")
+        else:
+            for index, row in filtered_df.iterrows():
+                with st.expander(f"**{row['title']}** (Category: {row['category']})", expanded=False):
+                    st.markdown(f"*Submitted by: {row['username']}*")
+                    if row['tags']:
+                        st.markdown(f"**Tags:** `{row['tags']}`")
+                    st.code(row['prompt_text'], language="text")
+
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        rating_data = conn.client.table("votes").select("rating", count="exact").eq("prompt_id", row['id']).execute()
+                        avg_rating = sum(r['rating'] for r in rating_data.data) / rating_data.count if rating_data.count > 0 else 0
+                        st.markdown(f"**Rating: {avg_rating:.2f} / 5** ({rating_data.count} votes)")
+
+                    with col2:
+                        if st.session_state.logged_in:
+                            user_vote_data = conn.client.table("votes").select("rating").eq("prompt_id", row['id']).eq("user_id", st.session_state.user_id).execute().data
+                            user_vote = user_vote_data[0]['rating'] if user_vote_data else 0
+                            
+                            star_cols = st.columns(5)
+                            for i, star_col in enumerate(star_cols, 1):
+                                with star_col:
+                                    if st.button("⭐" if i <= user_vote else "☆", key=f"star_{row['id']}_{i}", use_container_width=True):
+                                        new_rating = i
+                                        if new_rating == user_vote: new_rating = 0
+                                        
+                                        conn.client.table("votes").upsert({
+                                            "prompt_id": row['id'],
+                                            "user_id": st.session_state.user_id,
+                                            "rating": new_rating
+                                        }).execute()
+                                        st.rerun()
+                        else:
+                            st.warning("Login to vote!")
+
 with tab_submit:
     st.header("✍️ Share Your Own Prompt")
     if st.session_state.logged_in:
-        # Define the tags for each category
         tag_options = {
             "Medical Student": ["ExamPrep", "CaseSimulator", "ConceptInstruction", "MnemonicGenerator", "NoteTaker"],
             "Residents": ["GuidelineCheck", "FellowshipCoach", "ICD10Helper", "Scribing", "CaseSimulator"]
@@ -146,11 +161,9 @@ with tab_submit:
         
         with st.form("prompt_submission_form", clear_on_submit=True):
             title = st.text_input("Prompt Title")
-            
-            # Use new categories
+        
             category = st.selectbox("Category", ["Medical Student", "Residents"])
             
-            # Dynamically show tags based on selected category
             tags = []
             if category:
                 tags = st.multiselect("Select Tags", options=tag_options[category])
@@ -160,7 +173,6 @@ with tab_submit:
 
             if submitted:
                 if title and prompt_text and category and tags:
-                    # Convert the list of tags to a comma-separated string for storage
                     tags_string = ", ".join(tags)
                     
                     conn.client.table("prompts").insert({
@@ -178,11 +190,9 @@ with tab_submit:
         st.warning("You must be logged in to submit a prompt.")
         
 
-# --- ADMIN PANEL TAB ---
 with tab_admin:
     if st.session_state.role == 'admin':
-        st.header("🔑 Admin Approval Queue")
-        # CORRECTED SYNTAX: Use conn.client.rpc(...)
+        st.header("Admin Approval Queue")
         pending_prompts_data = conn.client.rpc('get_pending_prompts_with_username', {}).execute().data
 
         if not pending_prompts_data:
@@ -200,12 +210,10 @@ with tab_admin:
                     col1, col2, col3 = st.columns([1, 1, 5])
                     with col1:
                         if st.button("Approve", key=f"approve_{row['id']}", type="primary"):
-                            # CORRECTED SYNTAX: Use conn.client
                             conn.client.table("prompts").update({"status": "approved"}).eq("id", row['id']).execute()
                             st.rerun()
                     with col2:
                         if st.button("Reject", key=f"reject_{row['id']}"):
-                            # CORRECTED SYNTAX: Use conn.client
                             conn.client.table("prompts").update({"status": "rejected"}).eq("id", row['id']).execute()
                             st.rerun()
     else:
