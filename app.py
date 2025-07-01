@@ -3,6 +3,8 @@ import streamlit as st
 from st_supabase_connection import SupabaseConnection
 import hashlib
 import pandas as pd
+import requests
+import urllib.parse
 
 
 st.set_page_config(page_title="AI Prompt Hub", layout="wide")
@@ -13,37 +15,81 @@ def hash_password(password):
 
 conn = st.connection("supabase", type=SupabaseConnection)
 
+try:
+    SLACK_CLIENT_ID = st.secrets["SLACK_CLIENT_ID"]
+    SLACK_CLIENT_SECRET = st.secrets["SLACK_CLIENT_SECRET"]
+    REDIRECT_URI = st.secrets["REDIRECT_URI"]
+    SLACK_SCOPES = "identity.basic,identity.email"
+except KeyError:
+    st.error("Slack credentials are not configured in Streamlit secrets.")
+    st.stop()
+    
+slack_auth_url_params = {
+    "scope": SLACK_SCOPES,
+    "client_id": SLACK_CLIENT_ID,
+    "redirect_uri": REDIRECT_URI,
+}
+slack_auth_url = f"https://slack.com/oauth/v2/authorize?{urllib.parse.urlencode(slack_auth_url_params)}"
+
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.username = ""
     st.session_state.user_id = 0
     st.session_state.role = ""
 
+
 with st.sidebar:
     st.title("User Hub")
 
+    query_params = st.query_params
+    if "code" in query_params and not st.session_state.logged_in:
+        code = query_params["code"]
+        token_url = "https://slack.com/api/oauth.v2.access"
+        response = requests.post(token_url, data={
+            "client_id": SLACK_CLIENT_ID, "client_secret": SLACK_CLIENT_SECRET,
+            "code": code, "redirect_uri": REDIRECT_URI
+        })
+        token_data = response.json()
+        
+        if token_data.get("ok"):
+            user_identity = token_data.get("authed_user", {})
+            st.session_state.logged_in = True
+            st.session_state.username = user_identity.get("name", "Slack User")
+            st.session_state.user_id = user_identity.get("id")
+            st.session_state.role = "user"
+            st.query_params.clear()
+            st.rerun()
+        else:
+            st.error(f"Slack login failed: {token_data.get('error', 'Unknown')}")
     if st.session_state.logged_in:
         st.success(f"Logged in as **{st.session_state.username}**")
         st.write(f"Role: **{st.session_state.role.capitalize()}**")
         if st.button("Logout"):
             st.session_state.logged_in = False
             st.session_state.username = ""
-            st.session_state.user_id = 0
+            st.session_state.user_id = ""
             st.session_state.role = ""
+            st.query_params.clear()
             st.rerun()
 
     else:
-        login_tab, register_tab = st.tabs(["Login", "Register"])
+        member_tab, admin_tab = st.tabs(["Member Login", "Admin Login"])
 
-        with login_tab:
-            with st.form("login_form"):
-                username = st.text_input("Username")
-                password = st.text_input("Password", type="password")
-                login_button = st.form_submit_button("Login")
+        with member_tab:
+            st.write("Login with your MDPlus Slack account.")
+            st.link_button("Login with Slack", slack_auth_url, use_container_width=True, type="primary")
+
+        with admin_tab:
+            st.write("For administrative access only.")
+            with st.form("admin_login_form"):
+                username = st.text_input("Admin Username")
+                password = st.text_input("Admin Password", type="password")
+                login_button = st.form_submit_button("Login as Admin")
 
                 if login_button:
                     password_hash = hash_password(password)
-                    user_data = conn.client.table("users").select("*", count="exact").eq("username", username).eq("password_hash", password_hash).execute()
+                    user_data = conn.client.table("users").select("*", count="exact").eq("username", username).eq("password_hash", password_hash).eq("role", "admin").execute()
+                    
                     if user_data.count > 0:
                         user = user_data.data[0]
                         st.session_state.logged_in = True
@@ -52,25 +98,7 @@ with st.sidebar:
                         st.session_state.role = user['role']
                         st.rerun()
                     else:
-                        st.error("Invalid username or password")
-
-        with register_tab:
-            with st.form("register_form"):
-                new_username = st.text_input("Choose a Username")
-                new_password = st.text_input("Choose a Password", type="password")
-                register_button = st.form_submit_button("Register")
-
-                if register_button:
-                    user_exists = conn.client.table("users").select("*", count="exact").eq("username", new_username).execute()
-                    if user_exists.count > 0:
-                        st.error("Username already exists.")
-                    else:
-                        conn.client.table("users").insert({
-                            "username": new_username,
-                            "password_hash": hash_password(new_password),
-                            "role": "user"
-                        }).execute()
-                        st.success("Registration successful! Please log in.")
+                        st.error("Invalid admin credentials or not an admin.")
 
 
 st.image("logo.png", width=250)
