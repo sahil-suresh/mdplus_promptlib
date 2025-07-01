@@ -19,7 +19,7 @@ try:
     SLACK_CLIENT_ID = st.secrets["SLACK_CLIENT_ID"]
     SLACK_CLIENT_SECRET = st.secrets["SLACK_CLIENT_SECRET"]
     REDIRECT_URI = st.secrets["REDIRECT_URI"]
-    SLACK_SCOPES = "identity.basic"
+    SLACK_SCOPES = "identity.basic identity.email"
 except KeyError:
     st.error("Slack credentials are not configured in Streamlit secrets.")
     st.stop()
