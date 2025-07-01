@@ -1,4 +1,4 @@
 # requirements.txt
-streamlit
+streamlit>=1.28.0
 st-supabase-connection
 pandas
