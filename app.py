@@ -73,7 +73,15 @@ with st.sidebar:
                         st.success("Registration successful! Please log in.")
 
 
-st.title("MDPlus AI Prompt Library")
+# Create columns for the logo and the title
+col1, col2 = st.columns([1, 5], vertical_align="center")
+
+with col1:
+    st.image("logo.png", width=120) # Display the logo
+
+with col2:
+    st.title("AI Prompt Library") # Display the title
+
 st.markdown("Discover, share, and vote on the best AI prompts.")
 
 tab_view, tab_submit, tab_admin = st.tabs(["View Prompts", "Submit a Prompt", "Admin Panel"])
