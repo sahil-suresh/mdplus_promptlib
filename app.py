@@ -24,8 +24,9 @@ except KeyError:
     st.error("Slack credentials are not configured in Streamlit secrets.")
     st.stop()
     
+
 slack_auth_url_params = {
-    "scope": SLACK_SCOPES,
+    "user_scope": SLACK_SCOPES,
     "client_id": SLACK_CLIENT_ID,
     "redirect_uri": REDIRECT_URI,
 }
