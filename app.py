@@ -210,8 +210,9 @@ with tab_submit:
                         "title": title,
                         "prompt_text": prompt_text,
                         "category": category,
-                        "tags": tags_string,  # Add the new tags data
+                        "tags": tags_string,
                         "submitted_by_id": st.session_state.user_id,
+                        "username": st.session_state.username,
                         "status": "pending"
                     }).execute()
                     st.success("Your prompt has been submitted for admin approval. Thank you!")
