@@ -224,11 +224,14 @@ with tab_submit:
             st.info("ℹ️ All fields are required. Please select or enter at least one tag to submit.")
             
             title = st.text_input("Prompt Title")
-            category = st.selectbox("Category", ["Medical Students", "Residents", "Miscellaneous"])
+            category = st.selectbox(
+                "Category (Who is this prompt for?)",
+                ["Preclinical Students", "Clinical Students", "Residents", "Miscellaneous"]
+            )
             
             selected_tags = []
-            if category:
-                selected_tags = st.multiselect("Select Tags", options=tag_options[category])
+            if category and category != "Miscellaneous":
+                selected_tags = st.multiselect("Select Tags (What does this prompt do?)", options=sorted(tag_options[category]))
             
             custom_tags_input = st.text_input("Or add your own custom tags (comma-separated)")
 
