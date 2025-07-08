@@ -187,24 +187,32 @@ with tab_submit:
         tag_options = {
             "Medical Students": ["ExamPrep", "CaseSimulator", "ConceptInstruction", "MnemonicGenerator", "NoteTaker", "AnatomyHelper"],
             "Residents": ["ExamPrep", "GuidelineCheck", "FellowshipCoach", "ICD10Helper", "Scribing", "CaseSimulator", "ClinicalTranslation"],
-            "Miscellaneous": []
+            "Miscellaneous": ["NoTag"]
         }
         
         with st.form("prompt_submission_form", clear_on_submit=True):
+            st.info("ℹ️ All fields are required. Please select or enter at least one tag to submit.")
+            
             title = st.text_input("Prompt Title")
-        
             category = st.selectbox("Category", ["Medical Students", "Residents", "Miscellaneous"])
             
-            tags = []
+            selected_tags = []
             if category:
-                tags = st.multiselect("Select Tags", options=tag_options[category])
+                selected_tags = st.multiselect("Select Tags", options=tag_options[category])
             
+            # 2. ADDED: Text input for custom tags.
+            custom_tags_input = st.text_input("Or add your own custom tags (comma-separated)")
+
             prompt_text = st.text_area("Prompt Text", height=200)
             submitted = st.form_submit_button("Submit for Approval")
 
             if submitted:
-                if title and prompt_text and category and tags:
-                    tags_string = ", ".join(tags)
+                # 3. MODIFIED: Logic to combine tags from both sources.
+                custom_tags = [tag.strip() for tag in custom_tags_input.split(',') if tag.strip()]
+                all_tags = sorted(list(set(selected_tags + custom_tags)))
+
+                if title and prompt_text and category and all_tags:
+                    tags_string = ", ".join(all_tags)
                     
                     conn.client.table("prompts").insert({
                         "title": title,
@@ -220,6 +228,7 @@ with tab_submit:
                     st.warning("Please fill out all fields, including at least one tag.")
     else:
         st.warning("You must be logged in to submit a prompt.")
+        
         
 
 with tab_admin:
