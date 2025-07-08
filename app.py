@@ -118,6 +118,16 @@ with tab_view:
     else:
         prompts_df = pd.DataFrame(prompts_data)
         
+        def calculate_avg_rating(prompt_id):
+            rating_data = conn.client.table("votes").select("rating", count="exact").eq("prompt_id", prompt_id).execute()
+            if rating_data.count > 0:
+                return sum(r['rating'] for r in rating_data.data) / rating_data.count
+            return 0
+        
+        prompts_df['avg_rating'] = prompts_df['id'].apply(calculate_avg_rating)
+        
+        prompts_df = prompts_df.sort_values(by='avg_rating', ascending=False).reset_index(drop=True)
+        
         st.subheader("Search and Filter")
         
         search_query = st.text_input("Search by keyword in title or prompt text", placeholder="e.g., cardiology, exam, note")
@@ -185,9 +195,29 @@ with tab_submit:
     st.header("Share Your Own Prompt")
     if st.session_state.logged_in:
         tag_options = {
-            "Medical Students": ["ExamPrep", "CaseSimulator", "ConceptInstruction", "MnemonicGenerator", "NoteTaker", "AnatomyHelper"],
-            "Residents": ["ExamPrep", "GuidelineCheck", "FellowshipCoach", "ICD10Helper", "Scribing", "CaseSimulator", "ClinicalTranslation"],
-            "Miscellaneous": ["NoTag"]
+            "Preclinical Students": [
+                "Anatomy Helper",
+                "Concept Instruction",
+                "USMLE Step1",
+                "Mnemonic Generator",
+                "Case Simulator (Pre-Clinical)"
+            ],
+            "Clinical Students": [
+                "Case Simulator (Clinical)",
+                "Clinical Translation",
+                "USMLE Step2",
+                "Note Taker",
+                "Scribing",
+                "Clerkship Prep",
+            ],
+            "Residents": [
+                "Case Simulator (Resident)",
+                "USMLE Step3",
+                "Fellowship Coach",
+                "Guideline Check",
+                "ICD-10 Helper",
+            ],
+            "Miscellaneous": []
         }
         
         with st.form("prompt_submission_form", clear_on_submit=True):
@@ -200,14 +230,12 @@ with tab_submit:
             if category:
                 selected_tags = st.multiselect("Select Tags", options=tag_options[category])
             
-            # 2. ADDED: Text input for custom tags.
             custom_tags_input = st.text_input("Or add your own custom tags (comma-separated)")
 
             prompt_text = st.text_area("Prompt Text", height=200)
             submitted = st.form_submit_button("Submit for Approval")
 
             if submitted:
-                # 3. MODIFIED: Logic to combine tags from both sources.
                 custom_tags = [tag.strip() for tag in custom_tags_input.split(',') if tag.strip()]
                 all_tags = sorted(list(set(selected_tags + custom_tags)))
 
